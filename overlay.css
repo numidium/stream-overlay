@@ -1,0 +1,19 @@
+body {
+    background-color: black;
+}
+
+#alert-area {
+    text-align: center;
+    text-shadow: 2px 2px blue;
+    opacity: 0;
+}
+
+#sub-title {
+    color: yellow;
+    font-family: 'Magic Cards';
+}
+
+#sub-message {
+    color: white;
+    font-family: 'ProFontWindows';
+}
