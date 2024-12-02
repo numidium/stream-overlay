@@ -1,4 +1,5 @@
-const tmi = require("tmi.js");
+const tmi = require('tmi.js');
+const Queue = require('./queue.js')
 const audioElements = document.querySelectorAll("audio[command]");
 const soundCommands = new Array(audioElements.length);
 for (let i = 0; i < audioElements.length; i++) {
@@ -12,56 +13,73 @@ const client = new tmi.Client({
 const alertQueue = new Queue(10);
 client.connect();
 client.on("message", (channel, tags, message, self) => {
-    let command = null;
+    // parse/play sound commands
+    let soundCommand = null;
     for (let i = 0; i < soundCommands.length; i++) {
         if (message.toLowerCase().startsWith(soundCommands[i])) {
-            command = soundCommands[i];
+            soundCommand = soundCommands[i];
             break;
         }
     }
     
-    if (command !== null) {
-        const attributeValue = command.replaceAll("'", "\\'");
+    if (soundCommand !== null) {
+        const attributeValue = soundCommand.replaceAll("'", "\\'");
         playSound(`audio[command='${attributeValue}']`);
+    }
+
+    // testing
+    if (tags.username === "numidium3rd" && message.at(0) === "!") {
+        const commandText = message.slice(0, message.search(" ")).toLowerCase();
+        switch (commandText) {
+            case "!testalert":
+                alertQueue.enqueue({ alertTitle: "Test Alert", alertMessage: message.split(`${commandText} `)[1], sound: "subscriber-sound" });
+                startAlertAnims(alertQueue);
+                break;
+            default:
+                break;
+        }
     }
 });
 
 client.on("raided", (channel, username, viewers) => {
     alertQueue.enqueue({ alertTitle: `${username} has raided with ${viewers} viewers!`, alertMessage: message, sound: "raid-sound" });
-    startAlertAnims(alertQueue, sound);
+    startAlertAnims(alertQueue);
 });
 
 client.on("subscription", (channel, username, method, message, userstate) => {
     alertQueue.enqueue({ alertTitle: `${username} joined the Mages' Guild!`, alertMessage: message, sound: "subscriber-sound" });
-    startAlertAnims(alertQueue, sound);
+    startAlertAnims(alertQueue);
 });
 
 client.on("resub", (channel, username, months, message, userstate, methods) => {
     const cumulativeMonths = ~~userstate["msg-param-cumulative-months"];
     alertQueue.enqueue({ alertTitle: `${username} has been subscribed for ${cumulativeMonths} months!`, alertMessage: message, sound: "subscriber-sound" });
-    startAlertAnims(alertQueue, sound);
+    startAlertAnims(alertQueue);
 });
 
 client.on("subgift", (channel, username, streakMonths, recipient, methods, userstate) => {
-    // Do your stuff.
-    let senderCount = ~~userstate["msg-param-sender-count"];
+    alertQueue.enqueue({ alertTitle: `${username} gifted a sub to ${recipient}!`, alertMessage: "", sound: "subscriber-sound" });
+    startAlertAnims(alertQueue);
 });
 
 client.on("cheer", (channel, userstate, message) => {
-    alertQueue.enqueue({ alertTitle: `${userstate["display-name"]} sent ${userstate.bits} bits!`, alertMessage: message, sound: "bits1-sound" });
-    startAlertAnims(alertQueue, sound);
+    if (Number(userstate.bits) < 500)
+        alertQueue.enqueue({ alertTitle: `${userstate["display-name"]} sent ${userstate.bits} bits!`, alertMessage: message, sound: "bits1-sound" });
+    else
+        alertQueue.enqueue({ alertTitle: `BIG CHEER! ${userstate["display-name"]} sent ${userstate.bits} bits!!`, alertMessage: message, sound: "bits2-sound" })
+    startAlertAnims(alertQueue);
 });
 
-function playSound(id) {
-    const sound = document.getElementById(id);
-    sound.currentTime = 0;
-    sound.play();
+function playSound(selector) {
+    const sound = document.querySelector(selector);
+    sound.cloneNode().play();
 }
 
 let isAlertAnimRunning = false;
 function startAlertAnims(queue) {
     if (isAlertAnimRunning)
         return;
+    isAlertAnimRunning = true;
     const fadeTimeLimit = 2000;
     const stayTimeLimit = 5000;
     let alertElement = document.getElementById("alert-area");
@@ -77,7 +95,7 @@ function startAlertAnims(queue) {
                 let item = queue.dequeue();
                 document.getElementById("sub-title").textContent = item.alertTitle;
                 document.getElementById("sub-message").textContent = item.alertMessage;
-                playSound(item.sound);
+                playSound(`#${item.sound}`);
                 state++;
                 break;
             case 1: // Fade In

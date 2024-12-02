@@ -1,4 +1,4 @@
-class Queue {
+module.exports = class Queue {
     constructor(size) {
         this.items = new Array(size);
         this.backIndex = 0;

@@ -2,6 +2,10 @@ body {
     background-color: black;
 }
 
+h1,h2{
+    font-size: 3em;
+}
+
 #alert-area {
     text-align: center;
     text-shadow: 2px 2px blue;
