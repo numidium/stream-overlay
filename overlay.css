@@ -1,5 +1,5 @@
 body {
-    background-color: black;
+    background-color: transparent;
 }
 
 h1,h2{
@@ -10,6 +10,10 @@ h1,h2{
     text-align: center;
     text-shadow: 2px 2px blue;
     opacity: 0;
+}
+
+#alert-area img {
+    display: none;
 }
 
 #sub-title {
