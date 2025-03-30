@@ -15,12 +15,14 @@ app.get('/', (req, res) => {
         <a id="auth-link" href="">Connect with Twitch</a>
     </body>
     <script type="text/javascript">
-        document.getElementById("auth-link").href = 
+        const authLink = document.getElementById("auth-link");
+        authLink.href = 
             "https://id.twitch.tv/oauth2/authorize?" +
             "client_id=dlch9ljsk7ibtvesc4par0knq9gfwz" +
             "&redirect_uri=http://localhost:3000/overlay" +
             "&response_type=token" +
-            "&scope=channel%3Aread%3Asubscriptions+moderator%3Aread%3Afollowers+user%3Aread%3Achat+channel%3Aread%3Aredemptions+bits%3Aread";
+            "&scope=channel%3Aread%3Asubscriptions+moderator%3Aread%3Afollowers+user%3Aread%3Achat+channel%3Aread%3Aredemptions+bits%3Aread+channel%3Aread%3Apolls";
+        authLink.click();
     </script>
 </html>`
     res.send(markup);

@@ -2,11 +2,12 @@
 const Queue = require('./queue.js')
 const audioElements = document.querySelectorAll("audio[command]");
 const soundCommands = new Array(audioElements.length);
+const soundCooldowns = {};
 for (let i = 0; i < audioElements.length; i++) {
     soundCommands[i] = audioElements[i].getAttribute("command");
 }
 
-const alertQueue = new Queue(10);
+const alertQueue = new Queue(15);
 const token = (new URLSearchParams(document.location.hash.substring(1))).get("access_token");
 const url = `wss://eventsub.wss.twitch.tv/ws`;
 const eventSocket = new WebSocket(url);
@@ -21,67 +22,97 @@ eventSocket.onerror = (error) => {
 
 const followType = "channel.follow";
 const subscribeType = "channel.subscribe";
+const giftType = "channel.subscription.gift";
 const resubType = "channel.subscription.message";
 const chatMessageType = "channel.chat.message";
 const cheerType = "channel.cheer";
+const raidType = "channel.raid";
+const pollType = "channel.poll.begin";
 let sessionId = null;
 eventSocket.onmessage = (e) => {
-    let data = JSON.parse(e.data);
+    const data = JSON.parse(e.data);
+    const payloadEvent = data.payload.event;
     const messageType = data.metadata.message_type;
     if (messageType === "session_welcome") {
         sessionId = data.payload.session.id;
         subscribeToEvent(chatMessageType);
         subscribeToEvent(followType);
         subscribeToEvent(subscribeType);
+        subscribeToEvent(giftType);
         subscribeToEvent(resubType);
         subscribeToEvent(cheerType);
+        subscribeToEvent(raidType);
+        subscribeToEvent(pollType);
     }
     else if (messageType === "notification") {
-        const subType = data.payload.subscription.type;
+        const subType = JSON.parse(e.data).payload.subscription.type;
         if (subType === followType) {
-            const userName = data.payload.event.user_name;
+            const userName = payloadEvent.user_name;
             alertQueue.enqueue({ alertTitle: `${userName} is now a follower!`, alertMessage: "Greetings!", sound: "follower-sound" });
             startAlertAnims(alertQueue);
         }
         else if (subType === subscribeType) {
-            const userName = data.payload.event.tier;
-            const tier = Number(data.payload.event.tier) / 1000;
-            alertQueue.enqueue({ alertTitle: `${userName} joined the Mages' Guild!`, alertMessage: `Tier ${tier} sub.`, sound: "subscriber-sound" });
+            const userName = payloadEvent.user_name;
+            const tier = Number(payloadEvent.tier) / 1000;
+            alertQueue.enqueue({ alertTitle: `${userName} joined the Mages' Guild!`, alertMessage: `Tier ${tier} sub.`, sound: "spell-sound" });
+            startAlertAnims(alertQueue);
+        }
+        else if (subType === giftType) {
+            const userName = getName(payloadEvent);
+            const numGifts = payloadEvent.total;
+            const tier = payloadEvent.tier;
+            alertQueue.enqueue({ alertTitle: `${userName} gifted ${numGifts} tier ${tier} subs!`, alertMessage: "Thanks!", sound: "subscriber-sound" });
             startAlertAnims(alertQueue);
         }
         else if (subType === resubType) {
-            const userName = data.payload.event.user_name;
-            const tier = Number(data.payload.event.tier) / 1000;
-            const message = data.payload.event.message.text;
-            const cumulativeMonths = Math.floor(data.payload.event.cumulative_months);
-            alertQueue.enqueue({ alertTitle: `${userName} has been subscribed at tier ${tier} for ${cumulativeMonths} months!`, alertMessage: message, sound: "subscriber-sound" });
+            const userName = payloadEvent.user_name;
+            const message = payloadEvent.message.text;
+            const cumulativeMonths = Math.floor(payloadEvent.cumulative_months);
+            alertQueue.enqueue({ alertTitle: `${userName} has been subbed for ${cumulativeMonths} months total!`, alertMessage: message, sound: "subscriber-sound" });
             startAlertAnims(alertQueue);
         }
         else if (subType === chatMessageType) {
-            const userName = data.payload.event.chatter_user_name;
-            const message = data.payload.event.message.text;
-            handleSoundCommands(message);
+            const userName = payloadEvent.chatter_user_name;
+            const message = payloadEvent.message.text;
+            handleSoundCommands(message, userName, soundCooldowns);
             // attention horse
-            if (data.payload.event.channel_points_custom_reward_id === "66c634dd-ff8a-4193-9f03-16c0cb648c08") {
+            if (payloadEvent.channel_points_custom_reward_id === "66c634dd-ff8a-4193-9f03-16c0cb648c08") {
                 alertQueue.enqueue({ alertTitle: `${userName} is an attention horse!`, alertMessage: message, sound: "horse-sound", image: "attention-horse" });
                 startAlertAnims(alertQueue);
             }
         }
         else if (subType === cheerType) {
-            const userName = data.payload.event.is_anonymous ? "Anonymous" : data.payload.event.user_name;
-            const message = data.payload.event.message;
-            const bits = Number(data.payload.event.bits);
+            const userName = getName(payloadEvent);
+            const message = payloadEvent.message;
+            const bits = Number(payloadEvent.bits);
             if (bits < 500)
                 alertQueue.enqueue({ alertTitle: `${userName} sent ${bits} bits!`, alertMessage: message, sound: "bits1-sound" });
             else
                 alertQueue.enqueue({ alertTitle: `BIG CHEER! ${userName} sent ${bits} bits!!`, alertMessage: message, sound: "bits2-sound" });
             startAlertAnims(alertQueue);
         }
+        else if (subType === raidType) {
+            const userName = payloadEvent.from_broadcaster_user_name;
+            const viewers = payloadEvent.viewers;
+            alertQueue.enqueue({ alertTitle: `${userName} raided with ${viewers} viewers!`, alertMessage: "Welcome, raiders!", sound: "raid-sound" });
+            startAlertAnims(alertQueue);
+        }
+        else if (subType === pollType) {
+            const voteQuestion = payloadEvent.title;
+            const choices = payloadEvent.choices;
+            let choicesText = "";
+            for (let i = 0; i < choices.length; i++) {
+                choicesText += `${i + 1}. ${choices[i].text}\n`;
+            }
+
+            alertQueue.enqueue({ alertTitle: `Poll started: ${voteQuestion}`, alertMessage: choicesText, sound: "vote-sound" });
+            startAlertAnims(alertQueue);
+        }
         /*
         // redemptions without messages
         else if (subType === "channel.channel_points_custom_reward_redemption.add") {
-            const userName = data.payload.event.chatter_user_name;
-            const message = data.payload.event.message.text;
+            const userName = payloadEvent.chatter_user_name;
+            const message = payloadEvent.message.text;
         }
         */
     }
@@ -99,9 +130,7 @@ function subscribeToEvent(subType) {
     const subscription = {
         type: subType,
         version: "1",
-        condition: {
-            broadcaster_user_id: userId
-        },
+        condition: {},
         transport: {
             method: "websocket",
             session_id: sessionId
@@ -114,10 +143,14 @@ function subscribeToEvent(subType) {
     }
     else if (subType === chatMessageType)
         subscription.condition.user_id = userId;
+    if (subType === raidType)
+        subscription.condition.to_broadcaster_user_id = userId;
+    else
+        subscription.condition.broadcaster_user_id = userId;
 
     var req = new XMLHttpRequest();
     req.open("POST", "https://api.twitch.tv/helix/eventsub/subscriptions", true);
-    req.setRequestHeader("Client-ID", "CLIENT_ID");
+    req.setRequestHeader("Client-ID", "dlch9ljsk7ibtvesc4par0knq9gfwz");
     req.setRequestHeader("Authorization", `Bearer ${token}`);
     req.setRequestHeader("Content-Type", "application/json");
     req.send(JSON.stringify(subscription));
@@ -130,7 +163,7 @@ function playSound(selector) {
     sound.cloneNode().play();
 }
 
-function handleSoundCommands(message) {
+function handleSoundCommands(message, userName, cooldowns) {
     // parse/play sound commands
     let soundCommand = null;
     for (let i = 0; i < soundCommands.length; i++) {
@@ -141,9 +174,39 @@ function handleSoundCommands(message) {
     }
     
     if (soundCommand !== null) {
-        const attributeValue = soundCommand.replaceAll("'", "\\'");
-        playSound(`audio[command='${attributeValue}']`);
+        if (cooldowns[userName] == null) {
+            cooldowns[userName] = { lastCmdTime: Date.now(), spamCount: 0, time: 0, cooling: false };
+        }
+
+        const cooldown = cooldowns[userName];
+        const baseCoolDownTime = 60000;
+        const spamWindow = 15000;
+        const spamThreshold = 5;
+        const timeSinceLastCmd = Date.now() - cooldown.lastCmdTime;
+        if (timeSinceLastCmd >= baseCoolDownTime)
+            cooldown.cooling = false;
+        if (cooldown.cooling) {
+            return;
+        }
+
+        cooldown.spamCount = timeSinceLastCmd <= spamWindow ? cooldown.spamCount + 1 : 1;
+        if (cooldown.spamCount >= spamThreshold) {
+            cooldown.cooling = true;
+            cooldown.time += baseCoolDownTime;
+            alertQueue.enqueue({ alertTitle: `${userName} is on sound timeout for ${cooldown.time / 1000} seconds.`, alertMessage: "Enough!", sound: "enough-sound", image: "enough" });
+            startAlertAnims(alertQueue);
+        }
+        else {
+            const attributeValue = soundCommand.replaceAll("'", "\\'");
+            playSound(`audio[command='${attributeValue}']`);
+        }
+
+        cooldown.lastCmdTime = Date.now();
     }
+}
+
+function getName(event) {
+    return event.is_anonymous ? "Anonymous" : event.user_name;
 }
 
 let isAlertAnimRunning = false;
