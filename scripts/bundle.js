@@ -27,7 +27,8 @@ const resubType = "channel.subscription.message";
 const chatMessageType = "channel.chat.message";
 const cheerType = "channel.cheer";
 const raidType = "channel.raid";
-const pollType = "channel.poll.begin";
+const pollBeginType = "channel.poll.begin";
+const pollEndType = "channel.poll.end";
 let sessionId = null;
 eventSocket.onmessage = (e) => {
     const data = JSON.parse(e.data);
@@ -42,7 +43,8 @@ eventSocket.onmessage = (e) => {
         subscribeToEvent(resubType);
         subscribeToEvent(cheerType);
         subscribeToEvent(raidType);
-        subscribeToEvent(pollType);
+        subscribeToEvent(pollBeginType);
+        subscribeToEvent(pollEndType);
     }
     else if (messageType === "notification") {
         const subType = JSON.parse(e.data).payload.subscription.type;
@@ -97,15 +99,52 @@ eventSocket.onmessage = (e) => {
             alertQueue.enqueue({ alertTitle: `${userName} raided with ${viewers} viewers!`, alertMessage: "Welcome, raiders!", sound: "raid-sound" });
             startAlertAnims(alertQueue);
         }
-        else if (subType === pollType) {
+        else if (subType === pollBeginType) {
             const voteQuestion = payloadEvent.title;
             const choices = payloadEvent.choices;
             let choicesText = "";
             for (let i = 0; i < choices.length; i++) {
-                choicesText += `${i + 1}. ${choices[i].text}\n`;
+                choicesText += `* ${choices[i].title}<br />`;
             }
 
             alertQueue.enqueue({ alertTitle: `Poll started: ${voteQuestion}`, alertMessage: choicesText, sound: "vote-sound" });
+            startAlertAnims(alertQueue);
+        }
+        else if (subType === pollEndType && payloadEvent.status === "completed") {
+            const voteQuestion = payloadEvent.title;
+            const choices = payloadEvent.choices;
+            let choicesText = "";
+            let maxVotes = 0;
+            let sortedChoices = choices.slice().sort((a, b) => {
+                if (a.votes > b.votes) {
+                    if (a.votes > maxVotes)
+                        maxVotes = a.votes;
+                    return 1;
+                }
+                if (a.votes < b.votes) {
+                    if (b.votes > maxVotes)
+                        maxVotes = b.votes;
+                    return -1;
+                }
+                return 0;
+            });
+
+            let tieWays = 1;
+            for (let i = sortedChoices.length - 1; i > 0; i--) {
+                if (sortedChoices[i].votes === sortedChoices[i - 1].votes && sortedChoices[i].votes === maxVotes) {
+                    tieWays++;
+                }
+            }
+            
+            let winText = tieWays > 1 ? " (T)" : " (W)";
+            for (let i = 0; i < choices.length; i++) {
+                let choiceWinText = "";
+                choiceWinText = choices[i].votes === maxVotes ? winText : "";
+                choicesText += `- ${choices[i].title} (${choices[i].votes})${choiceWinText}<br />`;
+            }
+
+            let tieText = tieWays > 1 ? ` (${tieWays}-way tie) ` : "";
+            alertQueue.enqueue({ alertTitle: `Poll ended${tieText}: ${voteQuestion}`, alertMessage: choicesText, sound: (tieWays > 1 ? "vote-fail-sound" : "vote-pass-sound") });
             startAlertAnims(alertQueue);
         }
         /*
@@ -228,7 +267,7 @@ function startAlertAnims(queue) {
             case 0: // Initialize
                 let item = queue.dequeue();
                 document.getElementById("sub-title").textContent = item.alertTitle;
-                document.getElementById("sub-message").textContent = item.alertMessage;
+                document.getElementById("sub-message").innerHTML = item.alertMessage;
                 const alertImages = document.getElementById("alert-area").querySelectorAll("img");
                 for (let i = 0; i < alertImages.length; i++) {
                     alertImages[i].style.display = "none";
