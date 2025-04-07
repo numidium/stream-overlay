@@ -112,19 +112,19 @@ eventSocket.onmessage = (e) => {
         else if (subType === pollEndType && payloadEvent.status === "completed") {
             const voteQuestion = payloadEvent.title;
             const choices = payloadEvent.choices;
-            let choicesText = "";
+            let choicesMarkup = "";
             let maxVotes = 0;
             let sortedChoices = choices.slice().sort((a, b) => {
-                if (a.votes > b.votes) {
-                    if (a.votes > maxVotes)
-                        maxVotes = a.votes;
+                if (maxVotes === 0 && a.votes > 0 || b.votes > 0)
+                    maxVotes = a.votes;
+                else if (a.votes > maxVotes)
+                    maxVotes = a.votes;
+                else if (b.votes > maxVotes)
+                    maxVotes = b.votes;
+                if (a.votes > b.votes)
                     return 1;
-                }
-                if (a.votes < b.votes) {
-                    if (b.votes > maxVotes)
-                        maxVotes = b.votes;
+                if (a.votes < b.votes)
                     return -1;
-                }
                 return 0;
             });
 
@@ -135,15 +135,16 @@ eventSocket.onmessage = (e) => {
                 }
             }
             
-            let winText = tieWays > 1 ? " (T)" : " (W)";
+            const isTied = tieWays > 1;
+            const winColor = isTied ? "crimson" : "limegreen";
+            const winStyleAttr = ` style="color: ${winColor};"`;
             for (let i = 0; i < choices.length; i++) {
-                let choiceWinText = "";
-                choiceWinText = choices[i].votes === maxVotes ? winText : "";
-                choicesText += `- ${choices[i].title} (${choices[i].votes})${choiceWinText}<br />`;
+                let choiceAttr = choices[i].votes === maxVotes ? winStyleAttr : "";
+                choicesMarkup += `<span${choiceAttr}>* ${choices[i].title} - (${choices[i].votes})</span><br />`;
             }
 
-            let tieText = tieWays > 1 ? ` (${tieWays}-way tie) ` : "";
-            alertQueue.enqueue({ alertTitle: `Poll ended${tieText}: ${voteQuestion}`, alertMessage: choicesText, sound: (tieWays > 1 ? "vote-fail-sound" : "vote-pass-sound") });
+            let tieText = isTied ? ` (${tieWays}-way tie) ` : "";
+            alertQueue.enqueue({ alertTitle: `Poll ended${tieText}: ${voteQuestion}`, alertMessage: choicesMarkup, sound: (isTied ? "vote-fail-sound" : "vote-pass-sound") });
             startAlertAnims(alertQueue);
         }
         /*
