@@ -55,14 +55,15 @@ eventSocket.onmessage = (e) => {
         else if (subType === subscribeType) {
             const userName = payloadEvent.user_name;
             const tier = Number(payloadEvent.tier) / 1000;
-            alertQueue.enqueue({ alertTitle: `${userName} joined the Mages' Guild!`, alertMessage: `Tier ${tier} sub.`, sound: "spell-sound" });
+            alertQueue.enqueue({ alertTitle: `${userName} joined the Mages' Guild!`, alertMessage: tier > 1 ? `Tier ${tier} sub.` : "Welcome!", sound: "spell-sound" });
             startAlertAnims(alertQueue);
         }
         else if (subType === giftType) {
             const userName = getName(payloadEvent);
             const numGifts = payloadEvent.total;
-            const tier = payloadEvent.tier;
-            alertQueue.enqueue({ alertTitle: `${userName} gifted ${numGifts} tier ${tier} subs!`, alertMessage: "Thanks!", sound: "subscriber-sound" });
+            const tier = Number(payloadEvent.tier) / 1000;
+            const tierText = tier > 1 ? `tier ${tier} ` : "";
+            alertQueue.enqueue({ alertTitle: `${userName} gifted ${numGifts} ${tierText}subs!`, alertMessage: "Christmas came early!", sound: "subscriber-sound" });
             startAlertAnims(alertQueue);
         }
         else if (subType === resubType) {
@@ -115,8 +116,11 @@ eventSocket.onmessage = (e) => {
             let choicesMarkup = "";
             let maxVotes = 0;
             let sortedChoices = choices.slice().sort((a, b) => {
-                if (maxVotes === 0 && a.votes > 0 || b.votes > 0)
-                    maxVotes = a.votes;
+                if (maxVotes === 0)
+                    if (a.votes > b.votes)
+                        maxVotes = a.votes;
+                    else
+                        maxVotes = b.votes;
                 else if (a.votes > maxVotes)
                     maxVotes = a.votes;
                 else if (b.votes > maxVotes)
