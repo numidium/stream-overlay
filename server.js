@@ -24,7 +24,7 @@ app.get('/', (req, res) => {
             "&scope=channel%3Aread%3Asubscriptions+moderator%3Aread%3Afollowers+user%3Aread%3Achat+channel%3Aread%3Aredemptions+bits%3Aread+channel%3Aread%3Apolls";
         authLink.click();
     </script>
-</html>`
+</html>`;
     res.send(markup);
 });
 
