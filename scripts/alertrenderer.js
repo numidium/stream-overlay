@@ -6,6 +6,7 @@ module.exports = class AlertRenderer {
     isAlertAnimRunning;
     stateEnum;
     attentionHorseId = "66c634dd-ff8a-4193-9f03-16c0cb648c08";
+    cheermoteData;
     cooldowns = [];
 
     constructor(_soundCommands, queueSize) {
@@ -56,12 +57,7 @@ module.exports = class AlertRenderer {
             if (cooldown.spamCount >= spamThreshold) {
                 cooldown.cooling = true;
                 cooldown.time += baseCoolDownTime;
-                let spamAlerts = [
-                    { alertTitle: `${userName} is on sound timeout for ${cooldown.time / 1000} seconds.`, alertMessage: "Enough!", sound: "enough-sound", image: "enough" },
-                    { alertTitle: `${userName} is on sound timeout for ${cooldown.time / 1000} seconds.`, alertMessage: "Shut up!", sound: "shutup-sound", image: "shutup" }
-                ];
-
-                this.queueAlertAnim(spamAlerts[Math.floor(Math.random() * 2)]);
+                this.queueAlertAnim({ alertTitle: `${userName} is on command timeout for ${cooldown.time / 1000} seconds.`, alertMessage: "Shut up!", sound: "shutup-sound", image: "shutup" });
             }
             else {
                 const attributeValue = soundCommand.replaceAll("'", "\\'");
@@ -248,5 +244,63 @@ module.exports = class AlertRenderer {
         }
 
         requestAnimationFrame(animStep);
+    }
+
+    getName(e) {
+        return e.is_anonymous ? "Anonymous" : e.user_name;
+    }
+
+    onNewFollower(self, e) {
+        self.enqueueNewFollower(e.user_name);
+    }
+
+    onNewSubscriber(self, e) {
+        self.enqueueNewSubscriber(e.user_name, Number(e.tier) / 1000);
+    }
+
+    onSubGift(self, e) {
+        const userName = self.getName(e);
+        const numGifts = e.total;
+        const tier = Number(e.tier) / 1000;
+        const tierText = tier > 1 ? `tier ${tier} ` : "";
+        self.enqueueSubGift(userName, numGifts, tierText);
+    }
+
+    onResub(self, e) {
+        const message = e.message.text;
+        const cumulativeMonths = Math.floor(e.cumulative_months);
+        self.enqueueResubMessage(e.user_name, cumulativeMonths, message);
+    }
+
+    onChatMessage(self, e) {
+        const userName = e.chatter_user_name;
+        const message = e.message.text;
+        const rewardId = e.channel_points_custom_reward_id;
+        self.enqueueChatMessage(message, userName, rewardId);
+    }
+
+    onCheer(self, e) {
+        let message = e.message;
+        const userName = self.getName(e);
+        const bits = Number(e.bits);
+        self.enqueueCheer(message, self.cheermoteData, userName, bits);
+    }
+
+    onRaid(self, e) {
+        const userName = e.from_broadcaster_user_name;
+        const viewers = e.viewers;
+        self.enqueueRaid(userName, viewers);
+    }
+
+    onPollBegin(self, e) {
+        const voteQuestion = e.title;
+        const choices = e.choices;
+        self.enqueuePollStart(voteQuestion, choices);
+    }
+
+    onPollEnd(self, e) {
+        const voteQuestion = e.title;
+        const choices = e.choices;
+        self.enqueuePollEnd(voteQuestion, choices);
     }
 }

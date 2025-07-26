@@ -12,7 +12,7 @@ app.get('/', (req, res) => {
         <title>Authorize</title>
     </head>
     <body>
-        <a id="auth-link" href="">Connect with Twitch</a>
+        <a id="auth-link" href="">.</a>
     </body>
     <script type="text/javascript">
         const authLink = document.getElementById("auth-link");
