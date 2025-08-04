@@ -1,6 +1,5 @@
 module.exports = class SpecViz {
     audioContext;
-    audioSource;
     analyser;
     canvas;
     context;
@@ -20,11 +19,6 @@ module.exports = class SpecViz {
         this.context = drawContext;
         this.context.imageSmoothingEnabled = false;
         this.blankCanvas();
-    }
-
-    connectAudioSource(audioSource) {
-        this.audioSource = audioSource;
-        this.audioSource.connect(this.analyser);
     }
 
     blankCanvas() {
@@ -55,11 +49,12 @@ module.exports = class SpecViz {
         }
     }
 
-    toggleHidden() {
-        if (this.canvas.style.display === "block")
-            this.canvas.style.display = "none";
-        else
-            this.canvas.style.display = "block";
+    show() {
+        this.canvas.style.display = "block";
+    }
+
+    hide() {
+        this.canvas.style.display = "";
     }
 }
 

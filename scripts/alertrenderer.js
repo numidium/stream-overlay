@@ -84,11 +84,15 @@ module.exports = class AlertRenderer {
 
     enqueueCheer(message, cheermoteData, userName, bits) {
         if (cheermoteData) {
-            for (let i = 0; i < cheermoteData.length; i++) {
-                if (message.indexOf(cheermoteData[i].prefix) === -1)
-                    continue;
-                const markup = `<img src='${cheermoteData[i].tiers[0].images.light.animated["4"]}' />`;
-                message = message.replaceAll(cheermoteData[i].prefix, markup);
+            const data = cheermoteData.data;
+            for (let i = 0; i < data.length; i++) {
+                for (let j = data[i].tiers.length - 1; j >= 0; j--) {
+                    if (message.indexOf(`${data[i].prefix}${data[i].tiers[j].id}`) === -1)
+                        continue;
+                    let tier = 0;
+                    const imageMarkup = `<img src='${data[i].tiers[j].images.light.animated["3"]}' />`;
+                    message = message.replaceAll(data[i].prefix, imageMarkup);
+                }
             }
         }
 
@@ -184,7 +188,7 @@ module.exports = class AlertRenderer {
                     let item = this.alertQueue.dequeue();
                     document.getElementById("sub-title").textContent = item.alertTitle;
                     document.getElementById("sub-message").innerHTML = item.alertMessage;
-                    const alertImages = document.getElementById("alert-area").querySelectorAll("img");
+                    const alertImages = document.getElementById("alert-area").querySelectorAll(".alert-image");
                     for (let i = 0; i < alertImages.length; i++) {
                         alertImages[i].style.display = "none";
                     }

@@ -7,17 +7,13 @@ h1,h2,p{
 }
 
 p {
-    font-size: 1.3em;
+    font-size: 1.5em;
 }
 
 #alert-area {
     text-align: center;
     text-shadow: 2px 2px blue;
     opacity: 0;
-}
-
-#alert-area img {
-    display: none;
 }
 
 #sub-title {
@@ -44,6 +40,6 @@ p {
     image-rendering: pixelated;
     display: none;
     position: absolute;
-    top: 620px;
-    left: 0px;
+    top: 0px;
+    right: 0px;
 }

@@ -2,6 +2,7 @@ const AlertRenderer = require('./alertrenderer.js');
 const { StatusCodes } = require('http-status-codes');
 const SpecViz = require('./specviz.js');
 const OverlaySongPlayer = require('./songplayer.js');
+const SoundSequencer = require('./soundsequencer.js');
 
 class EventDispatcher {
     subscriptions;
@@ -26,37 +27,6 @@ class EventDispatcher {
     }
 }
 
-class CommandHandler {
-    commandLibrary;
-
-    constructor() {
-        this.commandLibrary = {};
-    }
-
-    registerCommand(commandText, handler) {
-        this.commandLibrary[commandText.toUpperCase()] = handler;
-    }
-
-    handleChatCommand(userId, text) {
-        if (!text.startsWith("!"))
-            return;
-        const commandKey = text.split(" ")[0].split("!")[1].toUpperCase().replace(/\s/g, "").replace(/[^\x00-\x7F]/g, "");
-        if (this.commandLibrary[commandKey] == null)
-            return;
-        if (userId !== streamerUserId) {
-            document.getElementById("dennis").cloneNode().play();
-            return;
-        }
-
-        const params = text.split(" ").filter(token => token !== "").slice(1);
-        this.commandLibrary[commandKey](...params);
-    }
-
-    onChatMessage(self, e) {
-        self.handleChatCommand(e.chatter_user_id, e.message.text);
-    }
-}
-
 const audioElements = document.querySelectorAll("audio[command]");
 const soundCommands = new Array(audioElements.length);
 for (let i = 0; i < audioElements.length; i++) {
@@ -65,10 +35,8 @@ for (let i = 0; i < audioElements.length; i++) {
 
 const streamerUserId = "66293282"; // numidium3rd
 const token = (new URLSearchParams(document.location.hash.substring(1))).get("access_token");
-
 const queueSize = 15;
 const alertRenderer = new AlertRenderer(soundCommands, queueSize);
-
 let cheermotes;
 (function requestCheermotes() {
     const req = new XMLHttpRequest();
@@ -86,40 +54,63 @@ let cheermotes;
     req.send();
 })();
 
-const overlayAudioContext = new AudioContext();
+
 const canvas = document.getElementById("spectrum-surface");
-const drawContext = canvas.getContext("2d");
 const overlaySongElement = document.getElementById("song-player-audio");
+const overlayAudioContext = new AudioContext();
 const songAudioSource = overlayAudioContext.createMediaElementSource(overlaySongElement);
 songAudioSource.connect(overlayAudioContext.destination);
+const drawContext = canvas.getContext("2d");
 const audioVisualizer = new SpecViz(overlayAudioContext, drawContext, 2);
-audioVisualizer.connectAudioSource(songAudioSource);
+songAudioSource.connect(audioVisualizer.analyser);
 const overlaySongPlayer = new OverlaySongPlayer(overlayAudioContext);
-
-const subTypes = {
-    follow: "channel.follow",
-    subscribe: "channel.subscribe",
-    gift: "channel.subscription.gift",
-    resub: "channel.subscription.message",
-    chatMessage: "channel.chat.message",
-    cheer: "channel.cheer",
-    raid: "channel.raid",
-    pollBegin: "channel.poll.begin",
-    pollEnd: "channel.poll.end"
+const hgruntSequencer = new SoundSequencer("hgrunt", "wav");
+hgruntSequencer.onChatMessage = (self, e) => {
+    if (e.channel_points_custom_reward_id === "aa8336f9-b612-4df9-ac13-174c253edeee")
+        self.startSpeaking(e.message.text);
 };
 
-const commandHandler = new CommandHandler();
-commandHandler.registerCommand("brb", (song) => {
+const commandLibrary = {};
+function registerCommand(commandText, handler) {
+    commandLibrary[commandText.toUpperCase()] = handler;
+}
+
+let lastDennisTime = new Date();
+const baseDennisTimeout = 1000;
+let dennisTimeout = baseDennisTimeout;
+function parseAndExecuteCommand(userId, text) {
+    if (!text.startsWith("!"))
+        return;
+    const commandKey = text.split(/\s+/)[0].split("!")[1].toUpperCase().replace(/\s/g, "").replace(/[^\x00-\x7F]/g, "");
+    if (commandLibrary[commandKey] == null)
+        return;
+    const now = new Date();
+    if (userId !== streamerUserId && now - lastDennisTime > dennisTimeout) {
+        document.getElementById("dennis").cloneNode().play();
+        lastDennisTime = now;
+        dennisTimeout += baseDennisTimeout;
+        return;
+    }
+
+    const params = text.split(/\s+/).slice(1);
+    commandLibrary[commandKey](...params);
+}
+
+registerCommand("brb", (song) => {
     const brbText = document.getElementById("brb-text");
     if (brbText.style.display !== "block")
         brbText.style.display = "block";
     else
         brbText.style.display = "";
-    if (song.toUpperCase() === "SILENT")
+    if (song.toUpperCase() === "SILENT") {
+        overlaySongPlayer.stopSong();
+        audioVisualizer.hide();
         return;
-    audioVisualizer.toggleHidden();
+    }
+
+    audioVisualizer.show();
     const songElement = document.getElementById("song-player-audio");
-    const brbSongs = ["22", "23", "03 Raptor Rap"];
+    const brbSongs = ["22", "23", "03 Raptor Rap", "Star Control 2 Orbit III OST"];
     let songIndex = parseInt(song);
     if (isNaN(songIndex) || songIndex >= brbSongs.length) {
         songIndex = Math.floor(Math.random() * brbSongs.length);
@@ -142,7 +133,13 @@ commandHandler.registerCommand("brb", (song) => {
     requestAnimationFrame(drawVisualizer);
 });
 
-commandHandler.registerCommand("volume", (percentage) => {
+registerCommand("back", () => {
+    overlaySongPlayer.stopSong();
+    audioVisualizer.hide();
+    document.getElementById("brb-text").style.display = "none";
+});
+
+registerCommand("volume", (percentage) => {
     const songElement = document.getElementById("song-player-audio");
     const value = parseInt(percentage);
     if (isNaN(value))
@@ -150,18 +147,44 @@ commandHandler.registerCommand("volume", (percentage) => {
     songElement.volume = value / 100;
 });
 
+registerCommand("testbits", (cheermote_, bitCount_) => {
+    let bitCount = isNaN(bitCount_) ? 1 : bitCount_;
+    let cheermote = cheermote_ == null ? "SeemsGood" : cheermote_;
+    alertRenderer.enqueueCheer(`${cheermote} <-- an image should be over there`,
+        cheermotes,
+        "Dummy User",
+        bitCount
+    );
+});
+
+registerCommand("hgrunt", (word1, word2, word3, word4) => {
+    hgruntSequencer.startSpeaking(`${word1} ${word2} ${word3} ${word4}`);
+});
+
+const subTypes = {
+    follow: "channel.follow",
+    subscribe: "channel.subscribe",
+    gift: "channel.subscription.gift",
+    resub: "channel.subscription.message",
+    chatMessage: "channel.chat.message",
+    cheer: "channel.cheer",
+    raid: "channel.raid",
+    pollBegin: "channel.poll.begin",
+    pollEnd: "channel.poll.end"
+};
+
 const eventDispatcher = new EventDispatcher();
 eventDispatcher.subscribe(subTypes.follow, alertRenderer, alertRenderer.onNewFollower);
 eventDispatcher.subscribe(subTypes.subscribe, alertRenderer, alertRenderer.onNewSubscriber);
 eventDispatcher.subscribe(subTypes.gift, alertRenderer, alertRenderer.onSubGift);
 eventDispatcher.subscribe(subTypes.resub, alertRenderer, alertRenderer.onResub);
+eventDispatcher.subscribe(subTypes.chatMessage, null, (self, e) => { parseAndExecuteCommand(e.chatter_user_id, e.message.text); });
 eventDispatcher.subscribe(subTypes.chatMessage, alertRenderer, alertRenderer.onChatMessage);
+eventDispatcher.subscribe(subTypes.chatMessage, hgruntSequencer, hgruntSequencer.onChatMessage);
 eventDispatcher.subscribe(subTypes.cheer, alertRenderer, alertRenderer.onCheer);
 eventDispatcher.subscribe(subTypes.raid, alertRenderer, alertRenderer.onRaid);
 eventDispatcher.subscribe(subTypes.pollBegin, alertRenderer, alertRenderer.onPollBegin);
 eventDispatcher.subscribe(subTypes.pollEnd, alertRenderer, alertRenderer.onPollEnd);
-
-eventDispatcher.subscribe(subTypes.chatMessage, commandHandler, commandHandler.onChatMessage);
 
 let sessionId = null;
 function subscribeToTwitchEvent(subType) {
