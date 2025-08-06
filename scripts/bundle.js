@@ -383,6 +383,12 @@ hgruntSequencer.onChatMessage = (self, e) => {
         self.startSpeaking(e.message.text);
 };
 
+const voxSequencer = new SoundSequencer("vox", "wav");
+voxSequencer.onChatMessage = (self, e) => {
+    if (e.channel_points_custom_reward_id === "59a3780e-9fa6-41f2-b03a-5483537ecafd")
+        self.startSpeaking(e.message.text);
+};
+
 const commandLibrary = {};
 function registerCommand(commandText, handler) {
     commandLibrary[commandText.toUpperCase()] = handler;
@@ -398,8 +404,9 @@ function parseAndExecuteCommand(userId, text) {
     if (commandLibrary[commandKey] == null)
         return;
     const now = new Date();
-    if (userId !== streamerUserId && now - lastDennisTime > dennisTimeout) {
-        document.getElementById("dennis").cloneNode().play();
+    if (userId !== streamerUserId) {
+        if (now - lastDennisTime > dennisTimeout)
+            document.getElementById("dennis").cloneNode().play();
         lastDennisTime = now;
         dennisTimeout += baseDennisTimeout;
         return;
@@ -494,6 +501,7 @@ eventDispatcher.subscribe(subTypes.resub, alertRenderer, alertRenderer.onResub);
 eventDispatcher.subscribe(subTypes.chatMessage, null, (self, e) => { parseAndExecuteCommand(e.chatter_user_id, e.message.text); });
 eventDispatcher.subscribe(subTypes.chatMessage, alertRenderer, alertRenderer.onChatMessage);
 eventDispatcher.subscribe(subTypes.chatMessage, hgruntSequencer, hgruntSequencer.onChatMessage);
+eventDispatcher.subscribe(subTypes.chatMessage, voxSequencer, voxSequencer.onChatMessage);
 eventDispatcher.subscribe(subTypes.cheer, alertRenderer, alertRenderer.onCheer);
 eventDispatcher.subscribe(subTypes.raid, alertRenderer, alertRenderer.onRaid);
 eventDispatcher.subscribe(subTypes.pollBegin, alertRenderer, alertRenderer.onPollBegin);
@@ -654,8 +662,6 @@ module.exports = class SoundSequencer {
     fileNames;
     path;
     extension;
-    currentWords;
-    currentWord;
     wordIndex;
     constructor(soundSet, extension) {
         this.isReady = false;
@@ -670,32 +676,41 @@ module.exports = class SoundSequencer {
     startSpeaking(text) {
         if (!this.isReady)
             return;
+        let loadedWords = 0;
+        const wordLoaded = () => {
+            if (++loadedWords === currentWords.length) {
+                for (let i = 0; i < currentWords.length; i++)
+                    currentWords[i].removeEventListener("canplaythrough", wordLoaded);
+                sayCurrentWord();
+            }
+        }
+
         const tokens = text.toLowerCase().split(/\s+/);
-        this.currentWords = [];
+        const currentWords = [];
         for (let i = 0; i < tokens.length; i++) {
             if (this.fileNames.indexOf(tokens[i]) === -1)
                 continue;
             const audio = new Audio(`${this.path}${tokens[i]}.${this.extension}`);
             audio.volume = 0.3;
-            this.currentWords.push(audio);
+            audio.addEventListener("canplaythrough", wordLoaded);
+            currentWords.push(audio);
         }
 
-        this.wordIndex = 0;
+        let currentWord = null;
+        let wordIndex = 0;
         const sayCurrentWord = () => {
-            if (this.currentWord != null) {
-                this.currentWord.removeEventListener("ended", sayCurrentWord);
-                this.currentWord.removeEventListener("error", sayCurrentWord);
+            if (currentWord != null) {
+                currentWord.removeEventListener("ended", sayCurrentWord);
+                currentWord.removeEventListener("error", sayCurrentWord);
             }
 
-            if (this.wordIndex >= this.currentWords.length)
+            if (wordIndex >= currentWords.length)
                 return;
-            this.currentWord = this.currentWords[this.wordIndex++];
-            this.currentWord.play();
-            this.currentWord.addEventListener("ended", sayCurrentWord);
-            this.currentWord.addEventListener("error", sayCurrentWord);    
+            currentWord = currentWords[wordIndex++];
+            currentWord.play();
+            currentWord.addEventListener("ended", sayCurrentWord);
+            currentWord.addEventListener("error", sayCurrentWord);
         }
-
-        sayCurrentWord();
     }
 
     onChatMessage(self, e) {}

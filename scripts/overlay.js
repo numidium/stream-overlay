@@ -70,6 +70,12 @@ hgruntSequencer.onChatMessage = (self, e) => {
         self.startSpeaking(e.message.text);
 };
 
+const voxSequencer = new SoundSequencer("vox", "wav");
+voxSequencer.onChatMessage = (self, e) => {
+    if (e.channel_points_custom_reward_id === "59a3780e-9fa6-41f2-b03a-5483537ecafd")
+        self.startSpeaking(e.message.text);
+};
+
 const commandLibrary = {};
 function registerCommand(commandText, handler) {
     commandLibrary[commandText.toUpperCase()] = handler;
@@ -85,8 +91,9 @@ function parseAndExecuteCommand(userId, text) {
     if (commandLibrary[commandKey] == null)
         return;
     const now = new Date();
-    if (userId !== streamerUserId && now - lastDennisTime > dennisTimeout) {
-        document.getElementById("dennis").cloneNode().play();
+    if (userId !== streamerUserId) {
+        if (now - lastDennisTime > dennisTimeout)
+            document.getElementById("dennis").cloneNode().play();
         lastDennisTime = now;
         dennisTimeout += baseDennisTimeout;
         return;
@@ -181,6 +188,7 @@ eventDispatcher.subscribe(subTypes.resub, alertRenderer, alertRenderer.onResub);
 eventDispatcher.subscribe(subTypes.chatMessage, null, (self, e) => { parseAndExecuteCommand(e.chatter_user_id, e.message.text); });
 eventDispatcher.subscribe(subTypes.chatMessage, alertRenderer, alertRenderer.onChatMessage);
 eventDispatcher.subscribe(subTypes.chatMessage, hgruntSequencer, hgruntSequencer.onChatMessage);
+eventDispatcher.subscribe(subTypes.chatMessage, voxSequencer, voxSequencer.onChatMessage);
 eventDispatcher.subscribe(subTypes.cheer, alertRenderer, alertRenderer.onCheer);
 eventDispatcher.subscribe(subTypes.raid, alertRenderer, alertRenderer.onRaid);
 eventDispatcher.subscribe(subTypes.pollBegin, alertRenderer, alertRenderer.onPollBegin);
