@@ -57,6 +57,7 @@ let cheermotes;
 
 const canvas = document.getElementById("spectrum-surface");
 const overlaySongElement = document.getElementById("song-player-audio");
+overlaySongElement.volume = 0.2;
 const overlayAudioContext = new AudioContext();
 const songAudioSource = overlayAudioContext.createMediaElementSource(overlaySongElement);
 songAudioSource.connect(overlayAudioContext.destination);
@@ -81,7 +82,7 @@ function registerCommand(commandText, handler) {
     commandLibrary[commandText.toUpperCase()] = handler;
 }
 
-let lastDennisTime = new Date();
+let lastDennisTime = Date.now();
 const baseDennisTimeout = 1000;
 let dennisTimeout = baseDennisTimeout;
 function parseAndExecuteCommand(userId, text) {
@@ -90,7 +91,7 @@ function parseAndExecuteCommand(userId, text) {
     const commandKey = text.split(/\s+/)[0].split("!")[1].toUpperCase().replace(/\s/g, "").replace(/[^\x00-\x7F]/g, "");
     if (commandLibrary[commandKey] == null)
         return;
-    const now = new Date();
+    const now = Date.now();
     if (userId !== streamerUserId) {
         if (now - lastDennisTime > dennisTimeout)
             document.getElementById("dennis").cloneNode().play();
@@ -109,15 +110,15 @@ registerCommand("brb", (song) => {
         brbText.style.display = "block";
     else
         brbText.style.display = "";
-    if (song.toUpperCase() === "SILENT") {
+    if (song != null && song.toUpperCase() === "SILENT") {
         overlaySongPlayer.stopSong();
         audioVisualizer.hide();
         return;
     }
 
     audioVisualizer.show();
-    const songElement = document.getElementById("song-player-audio");
-    const brbSongs = ["22", "23", "03 Raptor Rap", "Star Control 2 Orbit III OST"];
+    const songElement = overlaySongElement;
+    const brbSongs = ["22", "23", "03 Raptor Rap", "Star Control 2 Orbit III OST", "cathedral", "world_map", "neptune"];
     let songIndex = parseInt(song);
     if (isNaN(songIndex) || songIndex >= brbSongs.length) {
         songIndex = Math.floor(Math.random() * brbSongs.length);
@@ -147,11 +148,14 @@ registerCommand("back", () => {
 });
 
 registerCommand("volume", (percentage) => {
-    const songElement = document.getElementById("song-player-audio");
+    const songElement = overlaySongElement;
     const value = parseInt(percentage);
     if (isNaN(value))
         return;
-    songElement.volume = value / 100;
+    if (percentage.startsWith("+") || percentage.startsWith("-"))
+        songElement.volume += value / 100;
+    else
+        songElement.volume = value / 100;
 });
 
 registerCommand("testbits", (cheermote_, bitCount_) => {

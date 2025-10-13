@@ -31,7 +31,7 @@ module.exports = class AlertRenderer {
     parseCommandAndPlaySound(message, userName) {
         let soundCommand = null;
         for (let i = 0; i < this.soundCommands.length; i++) {
-            if (message.toLowerCase().startsWith(this.soundCommands[i])) {
+            if (message.toLowerCase().split(" ", 1)[0].startsWith(this.soundCommands[i])) {
                 soundCommand = this.soundCommands[i];
                 break;
             }
@@ -303,6 +303,8 @@ module.exports = class AlertRenderer {
     }
 
     onPollEnd(self, e) {
+        if (e.status !== "completed") // statuses: completed, archived, terminated
+            return;
         const voteQuestion = e.title;
         const choices = e.choices;
         self.enqueuePollEnd(voteQuestion, choices);

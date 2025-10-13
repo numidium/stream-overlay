@@ -17,26 +17,6 @@ module.exports = class SoundSequencer {
     startSpeaking(text) {
         if (!this.isReady)
             return;
-        let loadedWords = 0;
-        const wordLoaded = () => {
-            if (++loadedWords === currentWords.length) {
-                for (let i = 0; i < currentWords.length; i++)
-                    currentWords[i].removeEventListener("canplaythrough", wordLoaded);
-                sayCurrentWord();
-            }
-        }
-
-        const tokens = text.toLowerCase().split(/\s+/);
-        const currentWords = [];
-        for (let i = 0; i < tokens.length; i++) {
-            if (this.fileNames.indexOf(tokens[i]) === -1)
-                continue;
-            const audio = new Audio(`${this.path}${tokens[i]}.${this.extension}`);
-            audio.volume = 0.3;
-            audio.addEventListener("canplaythrough", wordLoaded);
-            currentWords.push(audio);
-        }
-
         let currentWord = null;
         let wordIndex = 0;
         const sayCurrentWord = () => {
@@ -45,12 +25,32 @@ module.exports = class SoundSequencer {
                 currentWord.removeEventListener("error", sayCurrentWord);
             }
 
-            if (wordIndex >= currentWords.length)
+            if (wordIndex === currentWords.length)
                 return;
             currentWord = currentWords[wordIndex++];
             currentWord.play();
             currentWord.addEventListener("ended", sayCurrentWord);
             currentWord.addEventListener("error", sayCurrentWord);
+        }
+
+        const currentWords = [];
+        let loadedWords = 0;
+        const wordLoaded = () => {
+            if (++loadedWords >= currentWords.length) {
+                for (let i = 0; i < currentWords.length; i++)
+                    currentWords[i].removeEventListener("canplaythrough", wordLoaded);
+                sayCurrentWord();
+            }
+        }
+
+        const tokens = text.toLowerCase().split(/\s+/);
+        for (let i = 0; i < tokens.length; i++) {
+            if (this.fileNames.indexOf(tokens[i]) === -1)
+                continue;
+            const audio = new Audio(`${this.path}${tokens[i]}.${this.extension}`);
+            audio.volume = 0.2;
+            currentWords.push(audio);
+            audio.addEventListener("canplaythrough", wordLoaded);
         }
     }
 
