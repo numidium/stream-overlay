@@ -12,7 +12,7 @@
             <img class="alert-image" id="enough" src="./images/enough.png" width="245" height="164" />
             <img class="alert-image" id="shutup" src="./images/shutup.png" width="252" height="231"/>
         </div>
-        <h1 id="brb-text">BRB</h1>
+        <h1 id="brb-text" class="free-placement">BRB</h1>
         <!--Alert sounds-->
         <audio id="subscriber-sound" src="./sounds/level_up.mp3" preload="auto"></audio>
         <audio id="follower-sound" src="./sounds/greetings.mp3" preload="auto"></audio>
@@ -79,9 +79,16 @@
         <audio src="./sounds/hi.mp3" command="hi" preload="auto"></audio>
         <audio src="./sounds/bombs.mp3" command="bombs" preload="auto"></audio>
         <audio src="./sounds/kitedie.mp3" command="kitedie" preload="auto"></audio>
+        <audio src="./sounds/cargobox.mp3" command="cargobox" preload="auto"></audio>
         <!--Audio visualizer-->
         <audio id="song-player-audio" preload="none"></audio>
-        <canvas id="spectrum-surface" style="outline-style: outset;" width="256px" height="100px"></canvas>
+        <canvas id="spectrum-surface" class="free-placement" style="outline-style: outset;" width="256px" height="100px"></canvas>
+        <!--Audio metadata-->
+        <div id="song-metadata" class="free-placement">
+            <p><img src="./images/song.png"/><span id="song-title"></span></p>
+            <p><img src="./images/cd.png"><span id="album-title"></span></p>
+            <p><img src="./images/artist.png"><span id="artist-title"></span></p>
+        </div>
         <script type="text/javascript" src="./scripts/bundle.js"></script>
     </body>
 </html>

@@ -1,0 +1,12 @@
+{
+      "name": "stream-overlay",
+      "version": "1.0.0",
+      "description": "",
+      "main": "overlay.js",
+      "type": "module",
+      "author": "numidium3rd",
+      "license": "MIT",
+      "devDependencies": {
+            "esbuild": "0.25.11"
+      }
+}

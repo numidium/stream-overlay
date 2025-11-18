@@ -1,5 +1,6 @@
 body {
     background-color: transparent;
+    font-family: 'Daggerfall';
 }
 
 h1,h2,p{
@@ -10,6 +11,10 @@ p {
     font-size: 1.5em;
 }
 
+.free-placement {
+    position: absolute;
+}
+
 #alert-area {
     text-align: center;
     text-shadow: 2px 2px blue;
@@ -18,28 +23,32 @@ p {
 
 #sub-title {
     color: yellow;
-    font-family: 'Daggerfall';
 }
 
 #sub-message {
     color: white;
-    font-family: 'Daggerfall';
 }
 
 #brb-text {
     display: none;
-    position: absolute;
     top: 360px;
     right: 100px;
     color: yellow;
     font-size: 4em;
-    font-family: 'Daggerfall';
 }
 
 #spectrum-surface {
     image-rendering: pixelated;
     display: none;
-    position: absolute;
     top: 0px;
+    right: 0px;
+}
+
+#song-metadata {
+    display: none;
+    color: white;
+    font-size: 0.5em;
+    width: 256px;
+    top: 100px;
     right: 0px;
 }

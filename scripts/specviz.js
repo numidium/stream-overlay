@@ -1,4 +1,4 @@
-module.exports = class SpecViz {
+export default class SpecViz {
     audioContext;
     analyser;
     canvas;

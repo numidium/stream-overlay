@@ -1,6 +1,6 @@
-const Queue = require('./queue.js')
+import Queue from './queue.js';
 
-module.exports = class AlertRenderer {
+export default class AlertRenderer {
     soundCommands;
     alertQueue;
     isAlertAnimRunning;
@@ -31,9 +31,15 @@ module.exports = class AlertRenderer {
     parseCommandAndPlaySound(message, userName) {
         let soundCommand = null;
         for (let i = 0; i < this.soundCommands.length; i++) {
-            if (message.toLowerCase().split(" ", 1)[0].startsWith(this.soundCommands[i])) {
-                soundCommand = this.soundCommands[i];
-                break;
+            const commandTokens = this.soundCommands[i].split(" ");
+            const messageTokens = message.toLowerCase().split(" ");
+            if (commandTokens.length > messageTokens.length)
+                continue;
+            for (let j = 0; j < commandTokens.length; j++) {
+                if (commandTokens[j] != messageTokens[j])
+                    break;
+                if (j === commandTokens.length - 1)
+                    soundCommand = this.soundCommands[i];
             }
         }
         
@@ -76,7 +82,6 @@ module.exports = class AlertRenderer {
 
     enqueueChatMessage(message, userName, customRewardId) {
         this.parseCommandAndPlaySound(message, userName);
-        // attention horse
         if (customRewardId === this.attentionHorseId) {
             this.queueAlertAnim({ alertTitle: `${userName} is an attention horse!`, alertMessage: message, sound: "horse-sound", image: "attention-horse" });
         }

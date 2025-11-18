@@ -1,4 +1,4 @@
-module.exports = class OverlaySongPlayer {
+export default class OverlaySongPlayer {
     audioContext;
     mediaElement;
     isPlaying;

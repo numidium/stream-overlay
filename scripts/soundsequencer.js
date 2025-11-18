@@ -1,4 +1,4 @@
-module.exports = class SoundSequencer {
+export default class SoundSequencer {
     isReady;
     fileNames;
     path;

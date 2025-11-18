@@ -1,31 +1,9 @@
-const AlertRenderer = require('./alertrenderer.js');
-const { StatusCodes } = require('http-status-codes');
-const SpecViz = require('./specviz.js');
-const OverlaySongPlayer = require('./songplayer.js');
-const SoundSequencer = require('./soundsequencer.js');
-
-class EventDispatcher {
-    subscriptions;
-    constructor() {
-        this.subscriptions = {};
-    }
-
-    subscribe(eventType, obj, handler) {
-        if (this.subscriptions[eventType] == null)
-            this.subscriptions[eventType] = [];
-        const index = this.subscriptions[eventType].length;
-        this.subscriptions[eventType][index] = { target: obj, method: handler };
-    }
-
-    dispatch(eventType, event) {
-        const eventSubscriptions = this.subscriptions[eventType];
-        if (eventSubscriptions == null)
-            return;
-        for (let i = 0; i < eventSubscriptions.length; i++) {
-            eventSubscriptions[i].method(eventSubscriptions[i].target, event);
-        }
-    }
-}
+import AlertRenderer from './alertrenderer.js';
+import { StatusCodes } from 'http-status-codes';
+import SpecViz from './specviz.js';
+import OverlaySongPlayer from './songplayer.js';
+import SoundSequencer from './soundsequencer.js';
+import EventDispatcher from './eventdispatcher.js';
 
 const audioElements = document.querySelectorAll("audio[command]");
 const soundCommands = new Array(audioElements.length);
@@ -54,10 +32,9 @@ let cheermotes;
     req.send();
 })();
 
-
 const canvas = document.getElementById("spectrum-surface");
 const overlaySongElement = document.getElementById("song-player-audio");
-overlaySongElement.volume = 0.2;
+overlaySongElement.volume = 0.8;
 const overlayAudioContext = new AudioContext();
 const songAudioSource = overlayAudioContext.createMediaElementSource(overlaySongElement);
 songAudioSource.connect(overlayAudioContext.destination);
@@ -105,45 +82,94 @@ function parseAndExecuteCommand(userId, text) {
 }
 
 registerCommand("brb", (song) => {
-    const brbText = document.getElementById("brb-text");
-    if (brbText.style.display !== "block")
-        brbText.style.display = "block";
-    else
-        brbText.style.display = "";
+    document.getElementById("brb-text").style.display = "block";
+    const songMetaData = document.getElementById("song-metadata");
     if (song != null && song.toUpperCase() === "SILENT") {
         overlaySongPlayer.stopSong();
         audioVisualizer.hide();
+        songMetaData.style.display = "none";
         return;
     }
 
     audioVisualizer.show();
     const songElement = overlaySongElement;
-    const brbSongs = ["22", "23", "03 Raptor Rap", "Star Control 2 Orbit III OST", "cathedral", "world_map", "neptune"];
-    let songIndex = parseInt(song);
-    if (isNaN(songIndex) || songIndex >= brbSongs.length) {
-        songIndex = Math.floor(Math.random() * brbSongs.length);
+    const brbSongs = ["22", "23", "03 Raptor Rap", "Star Control 2 Orbit III OST", "cathedral", "world_map", "neptune", "Kurton - Jesus On TV",
+        "shape memory alloys", "silius 1"];
+
+    function loadSong(songInd) {
+        let songIndex = parseInt(songInd);
+        if (isNaN(songIndex) || songIndex >= brbSongs.length) {
+            songIndex = Math.floor(Math.random() * brbSongs.length);
+        }
+
+        const songPath = `./songs/${brbSongs[songIndex]}.mp3`;
+        songElement.src = songPath;
+        songElement.load();
+        const songPromise = new Promise(resolve => {
+            songElement.addEventListener("canplaythrough", () => { resolve(); }, { once: true });
+            if (songElement.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) resolve();
+        });
+
+        songPromise.then(() => { handleCanSongPlaythrough(); })
+        fetch(songPath)
+        .then(response => {
+            if (!response.ok)
+                return;
+            return response.blob();
+        })
+        .then(data => {
+            if (!data)
+                return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = e.target.result;
+                const tagData = data.slice(data.byteLength - 128, data.byteLength - 1);
+                const decoder = new TextDecoder();
+                const tagText = decoder.decode(tagData);
+                if (tagText.slice(0, 3) === "TAG") {
+                    const title = tagText.slice(3, 33).replaceAll("\0", "");
+                    const artist = tagText.slice(33, 63).replaceAll("\0", "");
+                    const album = tagText.slice(63, 93).replaceAll("\0", "");
+                    document.getElementById("song-title").textContent = title;
+                    document.getElementById("album-title").textContent = album;
+                    document.getElementById("artist-title").textContent = artist;
+                } else {
+                    console.log("No ID3 tag found.");
+                }
+            };
+
+            reader.readAsArrayBuffer(data);
+        });
     }
 
-    songElement.src = `./songs/${brbSongs[songIndex]}.mp3`;
-    songElement.load();
-    if (!overlaySongPlayer.isPlaying)
-        overlaySongPlayer.playSong(songElement);
-    else
-        overlaySongPlayer.stopSong();
+    function handleCanSongPlaythrough() {
+        overlaySongPlayer.playSong(songElement, false);
+        requestAnimationFrame(drawVisualizer);
+        songElement.removeEventListener("canplaythrough", handleCanSongPlaythrough);
+        songElement.addEventListener("ended", handleSongEnded);
+    }
 
+    function handleSongEnded() {
+        songElement.removeEventListener("ended", handleSongEnded);
+        loadSong();
+    }
+
+    loadSong(song);
+    songElement.addEventListener("canplaythrough", handleCanSongPlaythrough);
     function drawVisualizer(timeStamp) {
         if (!overlaySongPlayer.isPlaying)
             return;
         audioVisualizer.draw();
         requestAnimationFrame(drawVisualizer);
     }
-
-    requestAnimationFrame(drawVisualizer);
+    
+    songMetaData.style.display = "block"; 
 });
 
 registerCommand("back", () => {
     overlaySongPlayer.stopSong();
     audioVisualizer.hide();
+    document.getElementById("song-metadata").style.display = "none";
     document.getElementById("brb-text").style.display = "none";
 });
 
