@@ -93,9 +93,11 @@ registerCommand("brb", (song) => {
 
     audioVisualizer.show();
     const songElement = overlaySongElement;
-    const brbSongs = ["22", "23", "03 Raptor Rap", "Star Control 2 Orbit III OST", "cathedral", "world_map", "neptune", "Kurton - Jesus On TV",
-        "shape memory alloys", "silius 1"];
-
+    let brbSongs = [];
+    //fetch("./brbsongs.json")
+    //    .then(response => response.json())
+    //    .then(json => brbSongs = json.brbSongs);
+    brbSongs = ["22", "23", "03 Raptor Rap", "Star Control 2 Orbit III OST", "cathedral", "world_map", "neptune", "Kurton - Jesus On TV",  "shape memory alloys", "silius 1", "02_ecolove", "losttape4", "Under Cover of Night", "Hollywood Theme"];
     function loadSong(songInd) {
         let songIndex = parseInt(songInd);
         if (isNaN(songIndex) || songIndex >= brbSongs.length) {
@@ -110,52 +112,51 @@ registerCommand("brb", (song) => {
             if (songElement.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) resolve();
         });
 
-        songPromise.then(() => { handleCanSongPlaythrough(); })
-        fetch(songPath)
-        .then(response => {
-            if (!response.ok)
-                return;
-            return response.blob();
-        })
-        .then(data => {
-            if (!data)
-                return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const data = e.target.result;
-                const tagData = data.slice(data.byteLength - 128, data.byteLength - 1);
-                const decoder = new TextDecoder();
-                const tagText = decoder.decode(tagData);
-                if (tagText.slice(0, 3) === "TAG") {
-                    const title = tagText.slice(3, 33).replaceAll("\0", "");
-                    const artist = tagText.slice(33, 63).replaceAll("\0", "");
-                    const album = tagText.slice(63, 93).replaceAll("\0", "");
-                    document.getElementById("song-title").textContent = title;
-                    document.getElementById("album-title").textContent = album;
-                    document.getElementById("artist-title").textContent = artist;
-                } else {
-                    console.log("No ID3 tag found.");
-                }
-            };
+        songPromise.then(() => {
+            handleCanSongPlaythrough();
+            fetch(songPath)
+            .then(response => {
+                if (!response.ok)
+                    return;
+                return response.blob();
+            })
+            .then(data => {
+                if (!data)
+                    return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = e.target.result;
+                    const tagData = data.slice(data.byteLength - 128, data.byteLength - 1);
+                    const decoder = new TextDecoder();
+                    const tagText = decoder.decode(tagData);
+                    if (tagText.slice(0, 3) === "TAG") {
+                        const title = tagText.slice(3, 33).replaceAll("\0", "");
+                        const artist = tagText.slice(33, 63).replaceAll("\0", "");
+                        const album = tagText.slice(63, 93).replaceAll("\0", "");
+                        document.getElementById("song-title").textContent = title;
+                        document.getElementById("album-title").textContent = album;
+                        document.getElementById("artist-title").textContent = artist;
+                    } else {
+                        console.log("No ID3 tag found.");
+                    }
+                };
 
-            reader.readAsArrayBuffer(data);
-        });
+                reader.readAsArrayBuffer(data);
+            });
+        })
     }
 
     function handleCanSongPlaythrough() {
         overlaySongPlayer.playSong(songElement, false);
         requestAnimationFrame(drawVisualizer);
-        songElement.removeEventListener("canplaythrough", handleCanSongPlaythrough);
-        songElement.addEventListener("ended", handleSongEnded);
+        songElement.addEventListener("ended", handleSongEnded, { once: true });
     }
 
     function handleSongEnded() {
-        songElement.removeEventListener("ended", handleSongEnded);
         loadSong();
     }
 
     loadSong(song);
-    songElement.addEventListener("canplaythrough", handleCanSongPlaythrough);
     function drawVisualizer(timeStamp) {
         if (!overlaySongPlayer.isPlaying)
             return;
@@ -184,6 +185,11 @@ registerCommand("volume", (percentage) => {
         songElement.volume = value / 100;
 });
 
+registerCommand("stopvoice", () => {
+    eventDispatcher.dispatch("voicestop", null);
+    document.getElementById("shutup-sound").play();
+});
+
 registerCommand("testbits", (cheermote_, bitCount_) => {
     let bitCount = isNaN(bitCount_) ? 1 : bitCount_;
     let cheermote = cheermote_ == null ? "SeemsGood" : cheermote_;
@@ -192,10 +198,6 @@ registerCommand("testbits", (cheermote_, bitCount_) => {
         "Dummy User",
         bitCount
     );
-});
-
-registerCommand("hgrunt", (word1, word2, word3, word4) => {
-    hgruntSequencer.startSpeaking(`${word1} ${word2} ${word3} ${word4}`);
 });
 
 const subTypes = {
@@ -219,6 +221,8 @@ eventDispatcher.subscribe(subTypes.chatMessage, null, (self, e) => { parseAndExe
 eventDispatcher.subscribe(subTypes.chatMessage, alertRenderer, alertRenderer.onChatMessage);
 eventDispatcher.subscribe(subTypes.chatMessage, hgruntSequencer, hgruntSequencer.onChatMessage);
 eventDispatcher.subscribe(subTypes.chatMessage, voxSequencer, voxSequencer.onChatMessage);
+eventDispatcher.subscribe("voicestop", hgruntSequencer, hgruntSequencer.onVoiceStop);
+eventDispatcher.subscribe("voicestop", voxSequencer, voxSequencer.onVoiceStop);
 eventDispatcher.subscribe(subTypes.cheer, alertRenderer, alertRenderer.onCheer);
 eventDispatcher.subscribe(subTypes.raid, alertRenderer, alertRenderer.onRaid);
 eventDispatcher.subscribe(subTypes.pollBegin, alertRenderer, alertRenderer.onPollBegin);
@@ -302,7 +306,6 @@ eventSocket.onmessage = (e) => {
         }
     }
 
-    //console.log(data);
     return false; // don't close connection
 };
 

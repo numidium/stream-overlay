@@ -53,8 +53,8 @@ export default class AlertRenderer {
             const spamWindow = 15000;
             const spamThreshold = 5;
             const timeSinceLastCmd = Date.now() - cooldown.lastCmdTime;
-            if (timeSinceLastCmd >= baseCoolDownTime)
-                cooldown.cooling = false;
+            if (timeSinceLastCmd >= cooldown.time)
+            cooldown.cooling = false;
             if (cooldown.cooling) {
                 return;
             }

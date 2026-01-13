@@ -4,6 +4,8 @@ export default class SoundSequencer {
     path;
     extension;
     wordIndex;
+    currentSound;
+    static startDelay = 1000;
     constructor(soundSet, extension) {
         this.isReady = false;
         fetch(`./${soundSet}.json`)
@@ -17,41 +19,35 @@ export default class SoundSequencer {
     startSpeaking(text) {
         if (!this.isReady)
             return;
-        let currentWord = null;
-        let wordIndex = 0;
-        const sayCurrentWord = () => {
-            if (currentWord != null) {
-                currentWord.removeEventListener("ended", sayCurrentWord);
-                currentWord.removeEventListener("error", sayCurrentWord);
-            }
-
-            if (wordIndex === currentWords.length)
-                return;
-            currentWord = currentWords[wordIndex++];
-            currentWord.play();
-            currentWord.addEventListener("ended", sayCurrentWord);
-            currentWord.addEventListener("error", sayCurrentWord);
-        }
-
-        const currentWords = [];
-        let loadedWords = 0;
-        const wordLoaded = () => {
-            if (++loadedWords >= currentWords.length) {
-                for (let i = 0; i < currentWords.length; i++)
-                    currentWords[i].removeEventListener("canplaythrough", wordLoaded);
-                sayCurrentWord();
-            }
-        }
-
         const tokens = text.toLowerCase().split(/\s+/);
+        const wordSounds = [];
         for (let i = 0; i < tokens.length; i++) {
             if (this.fileNames.indexOf(tokens[i]) === -1)
                 continue;
             const audio = new Audio(`${this.path}${tokens[i]}.${this.extension}`);
             audio.volume = 0.2;
-            currentWords.push(audio);
-            audio.addEventListener("canplaythrough", wordLoaded);
+            wordSounds[i] = audio;
         }
+
+        if (wordSounds.length === 0)
+            return;
+        const self = this;
+        setTimeout(() => {
+            for (let i = 0; i < wordSounds.length - 1; i++) {
+                wordSounds[i].addEventListener("ended", function (e) {
+                    self.currentSound = wordSounds[i + 1];
+                    self.currentSound.play();
+                }, { once: true });
+            }
+
+            wordSounds[0].play();
+        }, SoundSequencer.startDelay);
+    }
+
+    onVoiceStop(self, e) {
+        if (!self.currentSound)
+            return;
+        self.currentSound.pause();
     }
 
     onChatMessage(self, e) {}
