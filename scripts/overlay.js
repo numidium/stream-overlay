@@ -48,6 +48,8 @@ hgruntSequencer.onChatMessage = (self, e) => {
         self.startSpeaking(e.message.text);
 };
 
+let brbSongs = [];
+
 const voxSequencer = new SoundSequencer("vox", "wav");
 voxSequencer.onChatMessage = (self, e) => {
     if (e.channel_points_custom_reward_id === "59a3780e-9fa6-41f2-b03a-5483537ecafd")
@@ -93,11 +95,6 @@ registerCommand("brb", (song) => {
 
     audioVisualizer.show();
     const songElement = overlaySongElement;
-    let brbSongs = [];
-    //fetch("./brbsongs.json")
-    //    .then(response => response.json())
-    //    .then(json => brbSongs = json.brbSongs);
-    brbSongs = ["22", "23", "03 Raptor Rap", "Star Control 2 Orbit III OST", "cathedral", "world_map", "neptune", "Kurton - Jesus On TV",  "shape memory alloys", "silius 1", "02_ecolove", "losttape4", "Under Cover of Night", "Hollywood Theme"];
     function loadSong(songInd) {
         let songIndex = parseInt(songInd);
         if (isNaN(songIndex) || songIndex >= brbSongs.length) {
@@ -118,6 +115,7 @@ registerCommand("brb", (song) => {
             .then(response => {
                 if (!response.ok)
                     return;
+                console.log("Got mp3 blob. Reading tags...");
                 return response.blob();
             })
             .then(data => {
@@ -125,7 +123,7 @@ registerCommand("brb", (song) => {
                     return;
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    const data = e.target.result;
+                const data = e.target.result;
                     const tagData = data.slice(data.byteLength - 128, data.byteLength - 1);
                     const decoder = new TextDecoder();
                     const tagText = decoder.decode(tagData);
@@ -153,17 +151,21 @@ registerCommand("brb", (song) => {
     }
 
     function handleSongEnded() {
+        console.log("Song end event fired.");
         loadSong();
     }
 
-    loadSong(song);
     function drawVisualizer(timeStamp) {
         if (!overlaySongPlayer.isPlaying)
             return;
         audioVisualizer.draw();
         requestAnimationFrame(drawVisualizer);
     }
-    
+
+    fetch("./brbsongs.json")
+        .then(response => response.json())
+        .then(json => { if (brbSongs.length === 0) brbSongs = json.brbSongs; })
+        .then(() => loadSong(song) );
     songMetaData.style.display = "block"; 
 });
 
