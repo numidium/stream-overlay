@@ -125,7 +125,7 @@ registerCommand("brb", (song) => {
                 reader.onload = (e) => {
                 const data = e.target.result;
                     const tagData = data.slice(data.byteLength - 128, data.byteLength - 1);
-                    const decoder = new TextDecoder();
+                    const decoder = new TextDecoder("windows-1252");
                     const tagText = decoder.decode(tagData);
                     if (tagText.slice(0, 3) === "TAG") {
                         const title = tagText.slice(3, 33).replaceAll("\0", "");
