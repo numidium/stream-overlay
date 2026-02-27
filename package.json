@@ -8,5 +8,8 @@
       "license": "MIT",
       "devDependencies": {
             "esbuild": "0.25.11"
+      },
+      "dependencies": {
+            "@mkody/twitch-emoticons": "^2.9.5"
       }
 }

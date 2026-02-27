@@ -110,7 +110,6 @@ registerCommand("brb", (song) => {
         });
 
         songPromise.then(() => {
-            handleCanSongPlaythrough();
             fetch(songPath)
             .then(response => {
                 if (!response.ok)
@@ -141,6 +140,7 @@ registerCommand("brb", (song) => {
 
                 reader.readAsArrayBuffer(data);
             });
+            handleCanSongPlaythrough();
         })
     }
 

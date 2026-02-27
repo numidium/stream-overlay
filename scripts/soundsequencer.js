@@ -26,7 +26,7 @@ export default class SoundSequencer {
                 continue;
             const audio = new Audio(`${this.path}${tokens[i]}.${this.extension}`);
             audio.volume = 0.2;
-            wordSounds[i] = audio;
+            wordSounds.push(audio);
         }
 
         if (wordSounds.length === 0)
