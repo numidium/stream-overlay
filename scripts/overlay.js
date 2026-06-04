@@ -32,6 +32,24 @@ let cheermotes;
     req.send();
 })();
 
+(async function request7tvEmotes() {
+    const emotes = {};
+    const apiUrl = "https://7tv.io/v3/emote-sets/";
+    const setId = "01HQSR7SD00004BC31X06FD3KA"; 
+    const response = await fetch(`${apiUrl}${setId}`);
+    if (!response.ok) {
+        console.error(`Error occurred while fetching 7tv emotes: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const emoteList = data.emotes == null ? [] : data.emotes;
+    for (let i = 0; i < emoteList.length; i++) {
+        emotes[emoteList[i].name] = emoteList[i].id;
+    }
+
+    alertRenderer.emoteDict7tv = emotes;
+})();
+
 const canvas = document.getElementById("spectrum-surface");
 const overlaySongElement = document.getElementById("song-player-audio");
 overlaySongElement.volume = 0.8;
@@ -41,7 +59,7 @@ songAudioSource.connect(overlayAudioContext.destination);
 const drawContext = canvas.getContext("2d");
 const audioVisualizer = new SpecViz(overlayAudioContext, drawContext, 2);
 songAudioSource.connect(audioVisualizer.analyser);
-const overlaySongPlayer = new OverlaySongPlayer(overlayAudioContext);
+const overlaySongPlayer = new OverlaySongPlayer(overlayAudioContext, overlaySongElement);
 const hgruntSequencer = new SoundSequencer("hgrunt", "wav");
 hgruntSequencer.onChatMessage = (self, e) => {
     if (e.channel_points_custom_reward_id === "aa8336f9-b612-4df9-ac13-174c253edeee")
@@ -83,6 +101,63 @@ function parseAndExecuteCommand(userId, text) {
     commandLibrary[commandKey](...params);
 }
 
+function handleCanSongPlaythrough() {
+    overlaySongPlayer.playSong(overlaySongElement, false);
+    requestAnimationFrame(drawVisualizer);
+    overlaySongElement.removeEventListener("ended", handleSongEnded);
+    overlaySongElement.addEventListener("ended", handleSongEnded, { once: true });
+}
+
+function handleSongEnded() {
+    console.log("Song end event fired.");
+    loadSong();
+}
+
+function drawVisualizer(timeStamp) {
+    if (!overlaySongPlayer.isPlaying)
+        return;
+    audioVisualizer.draw();
+    requestAnimationFrame(drawVisualizer);
+}
+
+function loadSong(songInd) {
+    const songPromise = overlaySongPlayer.loadSong(songInd, brbSongs);
+    songPromise.then(() => {
+        fetch(overlaySongPlayer.songPath)
+        .then(response => {
+            if (!response.ok)
+                return;
+            console.log("Got mp3 blob. Reading tags...");
+            return response.blob();
+        })
+        .then(data => {
+            if (!data)
+                return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+            const data = e.target.result;
+                const tagData = data.slice(data.byteLength - 128, data.byteLength - 1);
+                const decoder = new TextDecoder("windows-1252");
+                const tagText = decoder.decode(tagData);
+                if (tagText.slice(0, 3) === "TAG") {
+                    const title = tagText.slice(3, 33).replaceAll("\0", "");
+                    const artist = tagText.slice(33, 63).replaceAll("\0", "");
+                    const album = tagText.slice(63, 93).replaceAll("\0", "");
+                    document.getElementById("song-title").textContent = title;
+                    document.getElementById("album-title").textContent = album;
+                    document.getElementById("artist-title").textContent = artist;
+                } else {
+                    console.log("No ID3 tag found.");
+                }
+            };
+
+            reader.readAsArrayBuffer(data);
+        });
+
+        handleCanSongPlaythrough();
+    })
+}
+
 registerCommand("brb", (song) => {
     document.getElementById("brb-text").style.display = "block";
     const songMetaData = document.getElementById("song-metadata");
@@ -94,74 +169,6 @@ registerCommand("brb", (song) => {
     }
 
     audioVisualizer.show();
-    const songElement = overlaySongElement;
-    function loadSong(songInd) {
-        let songIndex = parseInt(songInd);
-        if (isNaN(songIndex) || songIndex >= brbSongs.length) {
-            songIndex = Math.floor(Math.random() * brbSongs.length);
-        }
-
-        const songPath = `./songs/${brbSongs[songIndex]}.mp3`;
-        songElement.src = songPath;
-        songElement.load();
-        const songPromise = new Promise(resolve => {
-            songElement.addEventListener("canplaythrough", () => { resolve(); }, { once: true });
-            if (songElement.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) resolve();
-        });
-
-        songPromise.then(() => {
-            fetch(songPath)
-            .then(response => {
-                if (!response.ok)
-                    return;
-                console.log("Got mp3 blob. Reading tags...");
-                return response.blob();
-            })
-            .then(data => {
-                if (!data)
-                    return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                const data = e.target.result;
-                    const tagData = data.slice(data.byteLength - 128, data.byteLength - 1);
-                    const decoder = new TextDecoder("windows-1252");
-                    const tagText = decoder.decode(tagData);
-                    if (tagText.slice(0, 3) === "TAG") {
-                        const title = tagText.slice(3, 33).replaceAll("\0", "");
-                        const artist = tagText.slice(33, 63).replaceAll("\0", "");
-                        const album = tagText.slice(63, 93).replaceAll("\0", "");
-                        document.getElementById("song-title").textContent = title;
-                        document.getElementById("album-title").textContent = album;
-                        document.getElementById("artist-title").textContent = artist;
-                    } else {
-                        console.log("No ID3 tag found.");
-                    }
-                };
-
-                reader.readAsArrayBuffer(data);
-            });
-            handleCanSongPlaythrough();
-        })
-    }
-
-    function handleCanSongPlaythrough() {
-        overlaySongPlayer.playSong(songElement, false);
-        requestAnimationFrame(drawVisualizer);
-        songElement.addEventListener("ended", handleSongEnded, { once: true });
-    }
-
-    function handleSongEnded() {
-        console.log("Song end event fired.");
-        loadSong();
-    }
-
-    function drawVisualizer(timeStamp) {
-        if (!overlaySongPlayer.isPlaying)
-            return;
-        audioVisualizer.draw();
-        requestAnimationFrame(drawVisualizer);
-    }
-
     fetch("./brbsongs.json")
         .then(response => response.json())
         .then(json => { if (brbSongs.length === 0) brbSongs = json.brbSongs; })
@@ -177,14 +184,13 @@ registerCommand("back", () => {
 });
 
 registerCommand("volume", (percentage) => {
-    const songElement = overlaySongElement;
     const value = parseInt(percentage);
     if (isNaN(value))
         return;
     if (percentage.startsWith("+") || percentage.startsWith("-"))
-        songElement.volume += value / 100;
+        overlaySongElement.volume += value / 100;
     else
-        songElement.volume = value / 100;
+        overlaySongElement.volume = value / 100;
 });
 
 registerCommand("stopvoice", () => {

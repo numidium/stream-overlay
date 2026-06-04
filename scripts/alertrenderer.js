@@ -7,6 +7,7 @@ export default class AlertRenderer {
     stateEnum;
     attentionHorseId = "66c634dd-ff8a-4193-9f03-16c0cb648c08";
     cheermoteData;
+    emoteDict7tv = {};
     cooldowns = [];
 
     constructor(_soundCommands, queueSize) {
@@ -63,7 +64,7 @@ export default class AlertRenderer {
             if (cooldown.spamCount >= spamThreshold) {
                 cooldown.cooling = true;
                 cooldown.time += baseCoolDownTime;
-                this.queueAlertAnim({ alertTitle: `${userName} is on command timeout for ${cooldown.time / 1000} seconds.`, alertMessage: "Shut up!", sound: "shutup-sound", image: "shutup" });
+                this.queueAlertAnim({ alertTitle: `${userName} is silenced for ${cooldown.time / 1000} seconds.`, alertMessage: "Shut up!", sound: "shutup-sound", image: "shutup" });
             }
             else {
                 const attributeValue = soundCommand.replaceAll("'", "\\'");
@@ -80,32 +81,36 @@ export default class AlertRenderer {
             this.startAlertAnims();
     }
 
-    enqueueChatMessage(message, userName, customRewardId) {
-        this.parseCommandAndPlaySound(message, userName);
+    enqueueChatMessage(messageText, fragments, userName, customRewardId) {
+        this.parseCommandAndPlaySound(messageText, userName);
+        let text = messageText;
+        text = this.getMessageWith7tvEmotes(text);
+        const twitchEmotes = this.getTwitchEmotesFromFragments(fragments);
+        text = this.getMessageWithTwitchEmotes(text, twitchEmotes);
         if (customRewardId === this.attentionHorseId) {
-            this.queueAlertAnim({ alertTitle: `${userName} is an attention horse!`, alertMessage: message, sound: "horse-sound", image: "attention-horse" });
+            this.queueAlertAnim({ alertTitle: `${userName} is an attention horse!`, alertMessage: text, sound: "horse-sound", image: "attention-horse" });
         }
     }
 
-    enqueueCheer(message, cheermoteData, userName, bits) {
+    enqueueCheer(messageText, cheermoteData, userName, bits) {
         if (cheermoteData) {
             const data = cheermoteData.data;
             for (let i = 0; i < data.length; i++) {
                 for (let j = data[i].tiers.length - 1; j >= 0; j--) {
-                    if (message.indexOf(`${data[i].prefix}${data[i].tiers[j].id}`) === -1)
+                    if (messageText.indexOf(`${data[i].prefix}${data[i].tiers[j].id}`) === -1)
                         continue;
                     let tier = 0;
                     const imageMarkup = `<img src='${data[i].tiers[j].images.light.animated["3"]}' />`;
-                    message = message.replaceAll(data[i].prefix, imageMarkup);
+                    messageText = messageText.replaceAll(data[i].prefix, imageMarkup);
                 }
             }
         }
 
         const bigCheerThreshold = 1000;
         if (bits < bigCheerThreshold)
-            this.queueAlertAnim({ alertTitle: `${userName} sent ${bits} bits!`, alertMessage: message, sound: "bits1-sound" });
+            this.queueAlertAnim({ alertTitle: `${userName} sent ${bits} bits!`, alertMessage: messageText, sound: "bits1-sound" });
         else
-            this.queueAlertAnim({ alertTitle: `BIG CHEER! ${userName} sent ${bits} bits!!`, alertMessage: message, sound: "bits2-sound" });
+            this.queueAlertAnim({ alertTitle: `BIG CHEER! ${userName} sent ${bits} bits!!`, alertMessage: messageText, sound: "bits2-sound" });
     }
 
     enqueueRaid(userName, viewers) {
@@ -125,7 +130,11 @@ export default class AlertRenderer {
     }
 
     enqueueResubMessage(userName, cumulativeMonths, message) {
-        this.queueAlertAnim({ alertTitle: `${userName} has been subbed for ${cumulativeMonths} months total!`, alertMessage: message, sound: "subscriber-sound" });
+        const months = Math.floor(cumulativeMonths);
+        let messageText = this.getMessageWith7tvEmotes(message.text);
+        const twitchEmotes = this.getTwitchEmotesFromMessage(message);
+        messageText = this.getMessageWithTwitchEmotes(messageText, twitchEmotes);
+        this.queueAlertAnim({ alertTitle: `${userName} has been subbed for ${months} months total!`, alertMessage: messageText, sound: "subscriber-sound" });
     }
 
     enqueuePollStart(voteQuestion, choices) {
@@ -259,6 +268,56 @@ export default class AlertRenderer {
         return e.is_anonymous ? "Anonymous" : e.user_name;
     }
 
+    getMessageWith7tvEmotes(messageText) {
+        const words = messageText.split(/\s+/);
+        let changedMessageText = messageText;
+        for (let i = 0; i < words.length; i++) {
+            const word = words[i];
+            const emoteId = this.emoteDict7tv[word];
+            if (emoteId == null) continue;
+            changedMessageText = changedMessageText.replaceAll(word, `<img src='https://cdn.7tv.app/emote/${emoteId}/1x.webp'>`);
+        }
+
+        return changedMessageText;
+    }
+
+    getTwitchEmotesFromFragments(fragments) {
+        const emoteDict = {};
+        for (let i = 0; i < fragments.length; i++) {
+            const fragment = fragments[i];
+            if (fragment.type != "emote") continue;
+            emoteDict[fragment.text] = fragment.emote.id;
+        }
+
+        return emoteDict;
+    }
+
+    getTwitchEmotesFromMessage(message) {
+        const messageText = message.text;
+        const emotes = message.emotes;
+        const emoteDict = {};
+        for (let i = 0; i < emotes.length; i++) {
+            const emote = emotes[i];
+            const key = messageText.substring(emote.begin, emote.end);
+            emoteDict[key] = emote.id;
+        }
+
+        return emoteDict;
+    }
+
+    getMessageWithTwitchEmotes(messageText, emotes) {
+        const words = messageText.split(/\s+/);
+        let changedMessageText = messageText;
+        for (let i = 0; i < words.length; i++) {
+            const word = words[i];
+            const emoteId = emotes[word];
+            if (emoteId == null) continue;
+            changedMessageText = changedMessageText.replaceAll(word, `<img src='https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/default/dark/1.0'>`);
+        }
+
+        return changedMessageText;
+    }
+
     onNewFollower(self, e) {
         self.enqueueNewFollower(e.user_name);
     }
@@ -276,23 +335,22 @@ export default class AlertRenderer {
     }
 
     onResub(self, e) {
-        const message = e.message.text;
-        const cumulativeMonths = Math.floor(e.cumulative_months);
-        self.enqueueResubMessage(e.user_name, cumulativeMonths, message);
+        self.enqueueResubMessage(userName, e.cumulative_months, e.message);
     }
 
     onChatMessage(self, e) {
         const userName = e.chatter_user_name;
-        const message = e.message.text;
+        const messageText = e.message.text;
+        const fragments = e.message.fragments;
         const rewardId = e.channel_points_custom_reward_id;
-        self.enqueueChatMessage(message, userName, rewardId);
+        self.enqueueChatMessage(messageText, fragments, userName, rewardId);
     }
 
     onCheer(self, e) {
-        let message = e.message;
+        const messageText = this.getMessageWith7tvEmotes(e.message.text);
         const userName = self.getName(e);
         const bits = Number(e.bits);
-        self.enqueueCheer(message, self.cheermoteData, userName, bits);
+        self.enqueueCheer(messageText, self.cheermoteData, userName, bits);
     }
 
     onRaid(self, e) {
