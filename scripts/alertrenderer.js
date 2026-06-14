@@ -335,7 +335,7 @@ export default class AlertRenderer {
     }
 
     onResub(self, e) {
-        self.enqueueResubMessage(userName, e.cumulative_months, e.message);
+        self.enqueueResubMessage(e.user_name, e.cumulative_months, e.message);
     }
 
     onChatMessage(self, e) {
@@ -347,7 +347,7 @@ export default class AlertRenderer {
     }
 
     onCheer(self, e) {
-        const messageText = this.getMessageWith7tvEmotes(e.message.text);
+        const messageText = self.getMessageWith7tvEmotes(e.message.text);
         const userName = self.getName(e);
         const bits = Number(e.bits);
         self.enqueueCheer(messageText, self.cheermoteData, userName, bits);

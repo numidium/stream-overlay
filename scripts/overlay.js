@@ -109,7 +109,6 @@ function handleCanSongPlaythrough() {
 }
 
 function handleSongEnded() {
-    console.log("Song end event fired.");
     loadSong();
 }
 
@@ -127,7 +126,6 @@ function loadSong(songInd) {
         .then(response => {
             if (!response.ok)
                 return;
-            console.log("Got mp3 blob. Reading tags...");
             return response.blob();
         })
         .then(data => {

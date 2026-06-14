@@ -57,4 +57,3 @@ export default class SpecViz {
         this.canvas.style.display = "";
     }
 }
-

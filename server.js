@@ -1,7 +1,6 @@
 import express from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-//const io = require('socket.io')(server);
 
 const app = express();
 const port = 3000;
@@ -51,21 +50,6 @@ app.use((req, res, next) => {
   
     res.type('txt').send('Not found');
 });
-
-/*
-io.on('connection', socket => {
-    console.log('User connected');
-    socket.on('disconnect', () => {
-    console.log('User disconnected');
-    });
-});
-
-app.get('/admin/:command/:cmdparams', (req, res) => {
-    const command = req.params['command'];
-    const cmdParams = req.params['cmdparams'];
-    res.send();
-});
-*/
 
 app.listen(port, () => {
     console.log(`Overlay server listening on port ${port}`);
