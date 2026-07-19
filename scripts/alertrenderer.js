@@ -296,6 +296,8 @@ export default class AlertRenderer {
         const messageText = message.text;
         const emotes = message.emotes;
         const emoteDict = {};
+        if (emotes == null)
+            return emoteDict;
         for (let i = 0; i < emotes.length; i++) {
             const emote = emotes[i];
             const key = messageText.substring(emote.begin, emote.end);
@@ -347,7 +349,7 @@ export default class AlertRenderer {
     }
 
     onCheer(self, e) {
-        const messageText = self.getMessageWith7tvEmotes(e.message.text);
+        const messageText = self.getMessageWith7tvEmotes(e.message);
         const userName = self.getName(e);
         const bits = Number(e.bits);
         self.enqueueCheer(messageText, self.cheermoteData, userName, bits);

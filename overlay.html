@@ -89,9 +89,11 @@
         <audio src="./sounds/rakata.mp3" command="rakata" preload="auto"></audio>
         <audio src="./sounds/burgahl.mp3" command="burgahl" preload="auto"></audio>
         <audio src="./sounds/chinablivion.mp3" command="chinablivion" preload="auto"></audio>
+        <audio src="./sounds/grandie.mp3" command="grandie" preload="auto"></audio>
         <!--Audio visualizer-->
         <audio id="song-player-audio" preload="none"></audio>
-        <canvas id="spectrum-surface" class="free-placement" style="outline-style: outset;" width="256px" height="100px"></canvas>
+        <img id="oscilloscope" src="./images/oscilloscope.png" class="free-placement osc-element" width="112px" height="106px" />
+        <canvas id="spectrum-surface" class="free-placement osc-element" width="54px" height="53px"></canvas>
         <!--Audio metadata-->
         <div id="song-metadata" class="free-placement">
             <p><img src="./images/song.png"/><span id="song-title"></span></p>

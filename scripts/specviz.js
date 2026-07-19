@@ -3,12 +3,13 @@ export default class SpecViz {
     analyser;
     canvas;
     context;
+    lineColor;
     sliceWidth;
     sampleStep;
     sampleBuffer;
     ampZoom;
 
-    constructor(audioContext, drawContext, ampZoom = 1) {
+    constructor(audioContext, drawContext, lineColor, ampZoom = 1) {
         this.analyser = audioContext.createAnalyser();
         this.analyser.fftSize = 2048;
         this.sampleBuffer = new Uint8Array(this.analyser.fftSize);
@@ -17,13 +18,14 @@ export default class SpecViz {
         this.canvas = document.getElementById("spectrum-surface");
         this.sampleStep = Math.round(this.analyser.fftSize / this.canvas.width);
         this.context = drawContext;
+        this.context.strokeStyle = lineColor;
         this.context.imageSmoothingEnabled = false;
+        this.context.lineWidth = 1;
         this.blankCanvas();
     }
 
     blankCanvas() {
-        this.context.fillStyle = "black";
-        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     getYValue(amplitude) {
@@ -34,7 +36,6 @@ export default class SpecViz {
 
     draw() {
         this.blankCanvas();
-        this.context.strokeStyle = "teal";
         this.analyser.getByteTimeDomainData(this.sampleBuffer);
         const steps = this.analyser.fftSize / this.sampleStep;
         for (let i = 0; i < steps - 1; i++) {
@@ -44,7 +45,7 @@ export default class SpecViz {
             const nextAmpPosition = this.getYValue(nextSampleVal);
             this.context.beginPath();
             this.context.moveTo(i, ampPosition);
-            this.context.lineTo(i + 1, nextAmpPosition);
+            this.context.lineTo(i, nextAmpPosition);
             this.context.stroke();
         }
     }

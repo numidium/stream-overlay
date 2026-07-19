@@ -57,7 +57,7 @@ const overlayAudioContext = new AudioContext();
 const songAudioSource = overlayAudioContext.createMediaElementSource(overlaySongElement);
 songAudioSource.connect(overlayAudioContext.destination);
 const drawContext = canvas.getContext("2d");
-const audioVisualizer = new SpecViz(overlayAudioContext, drawContext, 2);
+const audioVisualizer = new SpecViz(overlayAudioContext, drawContext, "#DC00FF", 2, 2);
 songAudioSource.connect(audioVisualizer.analyser);
 const overlaySongPlayer = new OverlaySongPlayer(overlayAudioContext, overlaySongElement);
 const hgruntSequencer = new SoundSequencer("hgrunt", "wav");
@@ -161,16 +161,18 @@ registerCommand("brb", (song) => {
     const songMetaData = document.getElementById("song-metadata");
     if (song != null && song.toUpperCase() === "SILENT") {
         overlaySongPlayer.stopSong();
+        document.getElementById("oscilloscope").style.display = "none";
         audioVisualizer.hide();
         songMetaData.style.display = "none";
         return;
     }
 
+    document.getElementById("oscilloscope").style.display = "block";
     audioVisualizer.show();
     fetch("./brbsongs.json")
         .then(response => response.json())
         .then(json => { if (brbSongs.length === 0) brbSongs = json.brbSongs; })
-        .then(() => loadSong(song) );
+        .then(() => loadSong(song));
     songMetaData.style.display = "block"; 
 });
 
