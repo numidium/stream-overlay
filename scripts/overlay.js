@@ -181,6 +181,7 @@ registerCommand("back", () => {
     audioVisualizer.hide();
     document.getElementById("song-metadata").style.display = "none";
     document.getElementById("brb-text").style.display = "none";
+    document.getElementById("oscilloscope").style.display = "none";
 });
 
 registerCommand("volume", (percentage) => {

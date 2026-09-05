@@ -51,8 +51,8 @@ export default class AlertRenderer {
 
             const cooldown = this.cooldowns[userName];
             const baseCoolDownTime = 60000;
-            const spamWindow = 15000;
-            const spamThreshold = 5;
+            const spamWindow = 10000;
+            const spamThreshold = 4;
             const timeSinceLastCmd = Date.now() - cooldown.lastCmdTime;
             if (timeSinceLastCmd >= cooldown.time)
             cooldown.cooling = false;
